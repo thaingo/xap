@@ -29,6 +29,8 @@ import com.gigaspaces.lrmi.nio.filters.IOFilterException;
 import com.gigaspaces.lrmi.nio.filters.IOFilterManager;
 import com.gigaspaces.lrmi.nio.selector.handler.ReadSelectorThread;
 import com.gigaspaces.lrmi.nio.selector.handler.WriteSelectorThread;
+import com.gigaspaces.lrmi.tcp.TcpReader;
+import com.gigaspaces.lrmi.tcp.TcpWriter;
 import com.gigaspaces.time.SystemTime;
 import com.j_spaces.kernel.SystemProperties;
 
@@ -118,8 +120,9 @@ public class ChannelEntry implements IWriteInterestManager {
         _readSelectorThread = readSelectorThread;
         _writeSelectorThread = writeSelectorThread;
         _socketChannel = channel;
-        _writer = new Writer(channel, this);
-        _reader = new Reader(channel, _pivot.getSystemRequestHandler());
+        _writer = new TcpWriter(channel);
+        _writer.setWriteInterestManager(this);
+        _reader = new TcpReader(channel, _pivot.getSystemRequestHandler());
         _connectionID = UIDGen.nextId();
         _connectionTimeStamp = SystemTime.timeMillis();
         _clientEndPointAddress = clientEndPointAddress;
@@ -266,7 +269,7 @@ public class ChannelEntry implements IWriteInterestManager {
     public void close() throws IOException {
         //Clear the context the inner streams hold upon disconnection
         _socketChannel.close();
-        _writer.closeContext();
+        _writer.getSerializer().closeContext();
         _reader.closeContext();
     }
 
