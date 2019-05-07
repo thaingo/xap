@@ -7,7 +7,7 @@ import java.util.logging.Logger;
 public class OshiChecker {
 
     private static final Logger logger = Logger.getLogger(OshiChecker.class.getName());
-    private static final boolean enabled = initEnabled();
+    private static final boolean enabled = false;
 
     private static final SystemInfo systemInfo = initSystemInfo();
 
