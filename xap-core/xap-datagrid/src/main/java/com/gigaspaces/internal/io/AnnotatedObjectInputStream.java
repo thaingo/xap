@@ -18,6 +18,7 @@
 package com.gigaspaces.internal.io;
 
 import com.j_spaces.kernel.ClassLoaderHelper;
+import com.j_spaces.kernel.JSpaceUtilities;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -141,7 +142,13 @@ public class AnnotatedObjectInputStream
         try {
             return ClassLoaderHelper.loadClass(name);
         } catch (ClassNotFoundException e) {
-            return RMIClassLoader.loadClass(codebase, name, Thread.currentThread().getContextClassLoader());
+            try {
+                return RMIClassLoader.loadClass(codebase, name, Thread.currentThread().getContextClassLoader());
+            }catch (ClassNotFoundException e2){
+
+                throw new ClassNotFoundException(JSpaceUtilities.getStackTrace(e),e2);
+
+            }
         }
     }
 
