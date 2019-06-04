@@ -142,13 +142,7 @@ public class AnnotatedObjectInputStream
         try {
             return ClassLoaderHelper.loadClass(name);
         } catch (ClassNotFoundException e) {
-            try {
-                return RMIClassLoader.loadClass(codebase, name, Thread.currentThread().getContextClassLoader());
-            }catch (ClassNotFoundException e2){
-
-                throw new ClassNotFoundException(JSpaceUtilities.getStackTrace(e),e2);
-
-            }
+            return RMIClassLoader.loadClass(codebase, name, Thread.currentThread().getContextClassLoader());
         }
     }
 
