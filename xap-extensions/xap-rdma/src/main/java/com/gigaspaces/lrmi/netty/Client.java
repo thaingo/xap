@@ -5,7 +5,7 @@ import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
-import io.netty.channel.epoll.EpollSocketChannel;
+import io.netty.channel.socket.nio.NioSocketChannel;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -35,10 +35,10 @@ public class Client implements Closeable {
         map = new ConcurrentHashMap<>();
         bootstrap = new Bootstrap();
         bootstrap.group(NettyRMI.getInstance().getEventLoopGroup());
-        bootstrap.channel(EpollSocketChannel.class);
+        bootstrap.channel(NioSocketChannel.class);
         bootstrap.remoteAddress(inetSocketAddress);
-        bootstrap.handler(new ChannelInitializer<EpollSocketChannel>() {
-            protected void initChannel(EpollSocketChannel socketChannel) {
+        bootstrap.handler(new ChannelInitializer<NioSocketChannel>() {
+            protected void initChannel(NioSocketChannel socketChannel) {
                 socketChannel.pipeline().addLast(new MsgDecoder(deserializeReply));
                 socketChannel.pipeline().addLast(new MsgEncoder(serialize));
                 socketChannel.pipeline().addLast(new ClientHandler(map));

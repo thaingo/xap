@@ -2,6 +2,7 @@ package com.gigaspaces.lrmi.netty;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.epoll.EpollEventLoopGroup;
+import io.netty.channel.nio.NioEventLoopGroup;
 
 import java.io.*;
 
@@ -11,13 +12,13 @@ public class NettyRMI {
     public static NettyRMI getInstance() {
         return ourInstance;
     }
-    private EpollEventLoopGroup eventLoopGroup;
+    private NioEventLoopGroup eventLoopGroup;
 
     private NettyRMI() {
-        eventLoopGroup = new EpollEventLoopGroup();
+        eventLoopGroup = new NioEventLoopGroup();
     }
 
-    public EpollEventLoopGroup getEventLoopGroup() {
+    public NioEventLoopGroup getEventLoopGroup() {
         return eventLoopGroup;
     }
 

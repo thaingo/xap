@@ -39,6 +39,7 @@ import com.gigaspaces.lrmi.classloading.IRemoteClassProviderProvider;
 import com.gigaspaces.lrmi.classloading.LRMIRemoteClassLoaderIdentifier;
 import com.gigaspaces.lrmi.classloading.protocol.lrmi.HandshakeRequest;
 import com.gigaspaces.lrmi.classloading.protocol.lrmi.LRMIConnection;
+import com.gigaspaces.lrmi.netty.NettyChannel;
 import com.gigaspaces.lrmi.nio.async.AsyncContext;
 import com.gigaspaces.lrmi.nio.async.FutureContext;
 import com.gigaspaces.lrmi.nio.async.LRMIFuture;
@@ -136,7 +137,7 @@ public class CPeer extends BaseClientPeer {
     private AsyncContext _asyncContext = null;
     private boolean _asyncConnect;
 
-    private final boolean isRdma = RdmaConstants.ENABLED;
+    private final boolean isNetty = RdmaConstants.NETTY_ENABLED;
 
     public static LongAdder getConnectionsCounter() {
         return connections;
@@ -222,8 +223,8 @@ public class CPeer extends BaseClientPeer {
             _generatedTraffic += _channel.getWriter().getGeneratedTraffic();
             _receivedTraffic += _channel.getReader().getReceivedTraffic();
         }
-        if (isRdma) {
-            _channel = RdmaChannel.create(address);
+        if (isNetty) {
+            _channel = NettyChannel.create(address);
             m_Address = null;//((RdmaChannel) _channel).getEndpoint();
         } else {
             _channel = async ? TcpChannel.createAsync(address, _config, lrmiMethod, clientConversationRunner) : TcpChannel.createSync(address, _config);
@@ -506,7 +507,7 @@ public class CPeer extends BaseClientPeer {
             final String monitoringId = Pivot.extractMonitoringId(_requestPacket);
 
             // register the thread with the request watchdog
-            if (!isRdma)
+            if (!isNetty)
                 _watchdogContext.watchRequest(monitoringId);
 
             if (lrmiMethod.isAsync) {
@@ -517,8 +518,8 @@ public class CPeer extends BaseClientPeer {
                     result.reset(contextClassLoader);
                 }
 
-                if (isRdma) {
-                    CompletableFuture<ReplyPacket> future = ((RdmaChannel) _channel).submit(_requestPacket);
+                if (isNetty) {
+                    CompletableFuture<ReplyPacket> future = ((NettyChannel) _channel).submit(_requestPacket);
                     final LRMIFuture finalResult = result;
                     future.whenComplete((replyPacket, throwable) -> {
                         if (throwable != null)
@@ -546,16 +547,16 @@ public class CPeer extends BaseClientPeer {
             }
 
             previousThreadName = updateThreadNameIfNeeded();
-            CompletableFuture<ReplyPacket> rdmaFuture = null;
-            if (isRdma) {
-                rdmaFuture = ((RdmaChannel) _channel).submit(_requestPacket);
+            CompletableFuture<ReplyPacket> nettyFuture = null;
+            if (isNetty) {
+                nettyFuture = ((NettyChannel) _channel).submit(_requestPacket);
             } else {
                 _channel.getWriter().writeRequest(_requestPacket);
             }
 
             /** if <code>true</code> the client peer mode is one way, don't wait for reply */
             if (lrmiMethod.isOneWay) {
-                if (!isRdma)
+                if (!isNetty)
                     _monitoringModule.monitorActivity(monitoringId, _channel.getWriter(), _channel.getReader());
                 return null;
             }
@@ -569,8 +570,8 @@ public class CPeer extends BaseClientPeer {
             // to load a remote class, we will use the class loader of the exported object
             LRMIRemoteClassLoaderIdentifier previousIdentifier = RemoteClassLoaderContext.set(_remoteClassLoaderIdentifier);
             try {
-                if (isRdma) {
-                    replyPacket = rdmaFuture.get(RDMA_SYNC_OP_TIMEOUT, TimeUnit.MILLISECONDS);
+                if (isNetty) {
+                    replyPacket = nettyFuture.get(10, TimeUnit.MILLISECONDS);
                 } else {
                     replyPacket = new ReplyPacket();
                     while (hasMoreIntermidiateRequests) {
@@ -593,7 +594,7 @@ public class CPeer extends BaseClientPeer {
                 return replyPacket.getResult();
             } finally {
                 RemoteClassLoaderContext.set(previousIdentifier);
-                if (!isRdma) {
+                if (!isNetty) {
                     _monitoringModule.monitorActivity(monitoringId, _channel.getWriter(), _channel.getReader());
                 }
             }

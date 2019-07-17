@@ -324,28 +324,28 @@ public class ChannelEntry implements IWriteInterestManager {
     }
 
     public boolean readProtocolValidationHeader(Reader.ProtocolValidationContext context) {
-        try {
-            String protocolHeader = _reader.readProtocolValidationHeader(context);
-            if (!ProtocolValidation.PROTOCOL_STRING.startsWith(protocolHeader)) {
-                removeObsoleteRejectedProtocolHosts();
-                addToRejectedProtocolHosts();
-                return false;
-            }
-
-            if (ProtocolValidation.PROTOCOL_STRING.equals(protocolHeader)) {
-                removeObsoleteRejectedProtocolHosts();
-                _protocolValidated = true;
-            }
-
-            return true;
-        } catch (IOException e) {
-            if (_logger.isLoggable(Level.FINE))
-                _logger.log(Level.FINE, "Failed to read protocol header from " + getClientEndPointAddress() + " due to IOException", e);
-        } catch (Throwable t) {
-            if (_logger.isLoggable(Level.SEVERE))
-                _logger.log(Level.SEVERE, "Failed to read protocol header from " + getClientEndPointAddress(), t);
-        }
-        return false;
+//        try {
+//            String protocolHeader = _reader.readProtocolValidationHeader(context);
+//            if (!ProtocolValidation.PROTOCOL_STRING.startsWith(protocolHeader)) {
+//                removeObsoleteRejectedProtocolHosts();
+//                addToRejectedProtocolHosts();
+//                return false;
+//            }
+//
+//            if (ProtocolValidation.PROTOCOL_STRING.equals(protocolHeader)) {
+//                removeObsoleteRejectedProtocolHosts();
+//                _protocolValidated = true;
+//            }
+//
+//            return true;
+//        } catch (IOException e) {
+//            if (_logger.isLoggable(Level.FINE))
+//                _logger.log(Level.FINE, "Failed to read protocol header from " + getClientEndPointAddress() + " due to IOException", e);
+//        } catch (Throwable t) {
+//            if (_logger.isLoggable(Level.SEVERE))
+//                _logger.log(Level.SEVERE, "Failed to read protocol header from " + getClientEndPointAddress(), t);
+//        }
+        return true;
     }
 
     public void monitorActivity(String trackingId) {

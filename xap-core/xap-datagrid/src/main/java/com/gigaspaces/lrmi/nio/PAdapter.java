@@ -26,10 +26,10 @@ import com.gigaspaces.logger.Constants;
 import com.gigaspaces.lrmi.*;
 import com.gigaspaces.lrmi.classloading.DefaultClassProvider;
 import com.gigaspaces.lrmi.classloading.IClassProvider;
+import com.gigaspaces.lrmi.netty.NettyPivot;
 import com.gigaspaces.lrmi.nio.selector.handler.client.ClientConversationRunner;
 import com.gigaspaces.lrmi.nio.selector.handler.client.ClientHandler;
 import com.gigaspaces.lrmi.rdma.RdmaConstants;
-import com.gigaspaces.lrmi.rdma.RdmaPivot;
 import com.gigaspaces.management.transport.ITransportConnection;
 import com.j_spaces.core.service.ServiceConfigLoader;
 
@@ -142,8 +142,8 @@ public class PAdapter implements ProtocolAdapter<CPeer> {
             _logger.config(config.toString());
 
         try {
-            if(RdmaConstants.ENABLED){
-                m_Pivot = new RdmaPivot(_nioConfig, this);
+            if(RdmaConstants.NETTY_ENABLED){
+                m_Pivot = new NettyPivot(_nioConfig, this);
             } else {
                 m_Pivot = new Pivot(_nioConfig, this);
             }
