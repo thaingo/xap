@@ -4,6 +4,7 @@ import com.gigaspaces.internal.os.OSStatistics;
 import oshi.SystemInfo;
 import oshi.hardware.GlobalMemory;
 import oshi.hardware.NetworkIF;
+import oshi.hardware.VirtualMemory;
 
 import java.net.NetworkInterface;
 
@@ -23,7 +24,8 @@ public class OshiUtils {
     }
 
     public static long calcFreeSwapMemory(GlobalMemory memory) {
-        return memory.getSwapTotal() - memory.getSwapUsed();
+        VirtualMemory virtualMemory = memory.getVirtualMemory();
+        return virtualMemory.getSwapTotal() - virtualMemory.getSwapUsed();
     }
 
     public static OSStatistics.OSNetInterfaceStats[] calcNetStats() {
@@ -33,7 +35,7 @@ public class OshiUtils {
 
         for (int index = 0; index < networkIFs.length; index++) {
             NetworkIF networkIF = networkIFs[index];
-            NetworkInterface netInterface = networkIF.getNetworkInterface();
+            NetworkInterface netInterface = networkIF.queryNetworkInterface();
 
             OSStatistics.OSNetInterfaceStats netInterfaceStats = new OSStatistics.OSNetInterfaceStats(networkIF.getName(),
                     networkIF.getBytesRecv(), networkIF.getBytesSent(),

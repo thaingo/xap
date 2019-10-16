@@ -7,6 +7,8 @@ import oshi.hardware.CentralProcessor;
 import oshi.hardware.GlobalMemory;
 import oshi.hardware.HardwareAbstractionLayer;
 
+import java.util.concurrent.TimeUnit;
+
 
 public class OshiOSStatisticsProbe implements OSStatisticsProbe {
 
@@ -18,11 +20,13 @@ public class OshiOSStatisticsProbe implements OSStatisticsProbe {
         GlobalMemory memory = hardwareAbstractionLayer.getMemory();
         CentralProcessor processor = oshiSystemInfo.getHardware().getProcessor();
 
+        long[] oldCpuTicks = processor.getSystemCpuLoadTicks();
+        Thread.sleep(TimeUnit.SECONDS.toMillis(1));
         return new OSStatistics(System.currentTimeMillis(),
                 OshiUtils.calcFreeSwapMemory(memory),
                 memory.getAvailable(),
                 memory.getAvailable(),
-                processor.getSystemCpuLoad(),
+                processor.getSystemCpuLoadBetweenTicks(oldCpuTicks),
                 OshiUtils.getActualUsedMemory(memory),
                 OshiUtils.getUsedMemoryPerc(memory),
                 OshiUtils.calcNetStats());
