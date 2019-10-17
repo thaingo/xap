@@ -30,9 +30,11 @@ public class OshiGaugeUtils {
 
             @Override
             public Double getValue() throws Exception {
-                double returnVal = processor.getSystemCpuLoadBetweenTicks(oldCpuTicks) * 100;
-                oldCpuTicks = processor.getSystemCpuLoadTicks();
-                return returnVal;
+                long[] newCpuTicks = processor.getSystemCpuLoadTicks();
+                double systemCpuLoadBetweenTicks = OshiUtils.getSystemCpuLoadBetweenTicks(oldCpuTicks,newCpuTicks);
+                oldCpuTicks = newCpuTicks;
+
+                return systemCpuLoadBetweenTicks;
             }
         };
     }

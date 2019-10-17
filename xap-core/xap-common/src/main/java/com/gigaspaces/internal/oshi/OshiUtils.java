@@ -2,6 +2,7 @@ package com.gigaspaces.internal.oshi;
 
 import com.gigaspaces.internal.os.OSStatistics;
 import oshi.SystemInfo;
+import oshi.hardware.CentralProcessor;
 import oshi.hardware.GlobalMemory;
 import oshi.hardware.NetworkIF;
 import oshi.hardware.VirtualMemory;
@@ -47,5 +48,19 @@ public class OshiUtils {
             netInterfaceConfigArray[index] = netInterfaceStats;
         }
         return netInterfaceConfigArray;
+    }
+
+    public static double getSystemCpuLoadBetweenTicks(long[] oldTicks,long[] newTicks) {
+
+        // Calculate total
+        long total = 0;
+        for (int i = 0; i < newTicks.length; i++) {
+            total += newTicks[i] - oldTicks[i];
+        }
+        // Calculate idle from difference in idle and IOwait
+        long idle = newTicks[CentralProcessor.TickType.IDLE.getIndex()] + newTicks[CentralProcessor.TickType.IOWAIT.getIndex()]
+                - oldTicks[CentralProcessor.TickType.IDLE.getIndex()] - oldTicks[CentralProcessor.TickType.IOWAIT.getIndex()];
+
+        return total > 0 && idle >= 0 ? (double) (total - idle) / total : 0d;
     }
 }

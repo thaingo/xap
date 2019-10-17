@@ -20,8 +20,9 @@ public class OshiOSStatisticsProbe implements OSStatisticsProbe {
     @Override
     public OSStatistics probeStatistics() throws Exception {
 
-        double systemCpuLoadBetweenTicks = processor.getSystemCpuLoadBetweenTicks(oldCpuTicks);
-        oldCpuTicks = processor.getSystemCpuLoadTicks();
+        long[] newCpuTicks = processor.getSystemCpuLoadTicks();
+        double systemCpuLoadBetweenTicks = OshiUtils.getSystemCpuLoadBetweenTicks(oldCpuTicks,newCpuTicks);
+        oldCpuTicks = newCpuTicks;
 
         return new OSStatistics(System.currentTimeMillis(),
                 OshiUtils.calcFreeSwapMemory(memory),
