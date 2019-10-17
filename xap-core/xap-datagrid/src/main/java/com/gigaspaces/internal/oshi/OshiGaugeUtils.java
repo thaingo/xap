@@ -26,11 +26,13 @@ public class OshiGaugeUtils {
 
     public static Gauge<Double> getCpuPercGauge() {
         return new Gauge<Double>() {
+            private long[] oldCpuTicks = processor.getSystemCpuLoadTicks();
+
             @Override
             public Double getValue() throws Exception {
-                long[] oldCpuTicks = processor.getSystemCpuLoadTicks();
-                Thread.sleep(TimeUnit.SECONDS.toMillis(1));
-                return processor.getSystemCpuLoadBetweenTicks(oldCpuTicks)*100;
+                double returnVal = processor.getSystemCpuLoadBetweenTicks(oldCpuTicks) * 100;
+                oldCpuTicks = processor.getSystemCpuLoadTicks();
+                return returnVal;
             }
         };
     }
