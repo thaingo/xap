@@ -238,6 +238,16 @@ public class MetricManager implements Closeable {
         samplers.get(samplerName).register(metricName, tags, metric);
     }
 
+    public Object getMetricValue(String metricName){
+        String samplerName = patternSet.findBestMatch(metricName);
+        Map<MetricTags, MetricGroup> groups = samplers.get(samplerName).getRegistry().getGroups();
+        if (groups.values().size() != 1){
+            return null;
+        }
+        MetricGroup metricGroup = groups.values().iterator().next();
+        return metricGroup.getMetrics().get(metricName);
+    }
+
     void unregister(String metricName, MetricTags tags) {
         synchronized (lock) {
             for (MetricSampler sampler : samplers.values())

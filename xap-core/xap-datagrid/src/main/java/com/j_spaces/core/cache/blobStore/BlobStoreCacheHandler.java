@@ -162,6 +162,18 @@ public class BlobStoreCacheHandler implements IBlobStoreCacheHandler {
         });
 
         _blobstoreMetricRegistrar.register("cache-hit", _blobStoreCacheImpl.getHitCount());
+
+        _blobstoreMetricRegistrar.register("cache-avg", createCacheHitPercentGauge());
+
+    }
+
+    private Gauge<Double> createCacheHitPercentGauge() {
+        return new Gauge<Double>() {
+            @Override
+            public Double getValue() {
+                return _blobStoreCacheImpl.getCacheSize().getCount() != 0 ? ( double )_blobStoreCacheImpl.getHitCount().getCount()/_blobStoreCacheImpl.getCacheSize().getCount() : 0;
+            }
+        };
     }
 
     @Override
