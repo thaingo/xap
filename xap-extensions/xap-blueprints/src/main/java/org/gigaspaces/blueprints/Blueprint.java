@@ -73,10 +73,15 @@ public class Blueprint {
     }
 
     public Path getDefaultTarget(){
+        return getDefaultTarget(null);
+    }
+
+    public Path getDefaultTarget(Path targetPath){
         String name = "my-" + getName();
+        String pathName = targetPath == null ? name : targetPath.toString().concat("/"+name);
         int suffix = 1;
         Path path;
-        for (path = Paths.get(name) ; Files.exists(path); path = Paths.get(name + suffix++));
+        for (path = Paths.get(pathName) ; Files.exists(path); path = Paths.get(pathName + suffix++));
         return path;
     }
 
