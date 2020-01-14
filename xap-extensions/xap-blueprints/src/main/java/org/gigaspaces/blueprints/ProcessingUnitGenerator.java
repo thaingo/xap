@@ -17,7 +17,7 @@ public class ProcessingUnitGenerator {
 
         Path workDir = SystemLocations.singleton().work();
         Path tempDirectory = Files.createTempDirectory(workDir, "blueprint-temp");
-        Path blueprintDir = tempDirectory.resolve("blueprint");
+        Path blueprintDir = Files.createDirectory(tempDirectory.resolve("blueprint"));
         Path target = blueprintDir.resolve(name);
 
         blueprint.generate(target, properties);
