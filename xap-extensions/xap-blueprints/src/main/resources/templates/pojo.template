@@ -35,8 +35,10 @@ public class {{className}} {
     }
 {{/properties}}
 
+{{^initialLoadQuery.isEmpty}}
     @SpaceInitialLoadQuery
     public String initialLoadQuery() {
-        return "rowNum < 1000";
+        return "{{{initialLoadQuery}}}";
     }
+{{/initialLoadQuery.isEmpty}}
 }
