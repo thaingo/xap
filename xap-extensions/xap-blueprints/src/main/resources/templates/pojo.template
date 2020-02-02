@@ -34,4 +34,9 @@ public class {{className}} {
         this.{{fieldName}} = {{fieldName}};
     }
 {{/properties}}
+
+    @SpaceInitialLoadQuery
+    public String initialLoadQuery() {
+        return "rowNum < 1000";
+    }
 }
