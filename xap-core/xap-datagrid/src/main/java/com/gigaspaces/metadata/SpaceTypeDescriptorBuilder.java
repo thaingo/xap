@@ -785,8 +785,14 @@ public class SpaceTypeDescriptorBuilder {
             }
         }
 
-        if (_idPropertyName != null && !isFixedProperty(_idPropertyName))
-            addFixedProperty(_idPropertyName, Object.class);
+        if (_idPropertyName != null && !isFixedProperty(_idPropertyName)) {
+            if (_idAutoGenerate) {
+                addFixedProperty(_idPropertyName, String.class);
+            } else {
+                addFixedProperty(_idPropertyName, Object.class); // TODO check how can it reach that line.
+                // TODO because if the prop is not default, auto = off, not fixed.
+            }
+        }
 
         if (_routingPropertyName == null) {
             if (_superTypeDescriptor != null)
