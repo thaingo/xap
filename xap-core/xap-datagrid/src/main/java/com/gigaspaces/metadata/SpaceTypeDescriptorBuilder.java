@@ -789,8 +789,7 @@ public class SpaceTypeDescriptorBuilder {
             if (_idAutoGenerate) {
                 addFixedProperty(_idPropertyName, String.class);
             } else {
-                addFixedProperty(_idPropertyName, Object.class); // TODO check how can it reach that line.
-                // TODO because if the prop is not default, auto = off, not fixed.
+                addFixedProperty(_idPropertyName, Object.class);
             }
         }
 
