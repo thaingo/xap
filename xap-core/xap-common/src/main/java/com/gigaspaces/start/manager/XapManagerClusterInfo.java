@@ -41,7 +41,7 @@ public class XapManagerClusterInfo {
         }
     }
 
-    private static EnvironmentType parseEnvironmentType(){
+    private EnvironmentType parseEnvironmentType(){
         String managerTypeEnv = System.getenv("ENVIRONMENT_TYPE");
         return managerTypeEnv == null ? EnvironmentType.SERVICE_GRID : EnvironmentType.valueOf(managerTypeEnv);
     }
