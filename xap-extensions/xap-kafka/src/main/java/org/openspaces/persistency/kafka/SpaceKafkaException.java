@@ -14,20 +14,17 @@
  * limitations under the License.
  */
 
-package com.gigaspaces.sync;
+package org.openspaces.persistency.kafka;
 
-import java.io.Serializable;
+public class SpaceKafkaException extends RuntimeException {
 
-/**
- * Describe a synchronization source details {@link SynchronizationEndpointInterceptor} {@link
- * SpaceSynchronizationEndpoint}
- *
- * @author eitany
- * @since 9.0.1
- */
-public interface SynchronizationSourceDetails {
-    /**
-     * @return the name of the synchronization source.
-     */
-    String getName();
+    private static final long serialVersionUID = 1L;
+
+    public SpaceKafkaException(String message) {
+        super(message);
+    }
+
+    public SpaceKafkaException(String message, Throwable e) {
+        super(message, e);
+    }
 }
