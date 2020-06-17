@@ -34,6 +34,7 @@ import com.gigaspaces.internal.client.spaceproxy.transaction.SpaceProxyTransacti
 import com.gigaspaces.internal.cluster.PartitionToChunksMap;
 import com.gigaspaces.internal.cluster.SpaceClusterInfo;
 import com.gigaspaces.internal.metadata.ITypeDesc;
+import com.gigaspaces.internal.server.space.IClusterInfoChangedListener;
 import com.gigaspaces.internal.server.space.IRemoteSpace;
 import com.gigaspaces.internal.server.space.SpaceImpl;
 import com.gigaspaces.admin.demote.DemoteFailedException;
@@ -99,7 +100,7 @@ import org.slf4j.LoggerFactory;
  * @since 2.0
  */
 @com.gigaspaces.api.InternalApi
-public class SpaceProxyImpl extends AbstractDirectSpaceProxy implements SameProxyVersionProvider, MarshalPivotProvider {
+public class SpaceProxyImpl extends AbstractDirectSpaceProxy implements SameProxyVersionProvider, MarshalPivotProvider, IClusterInfoChangedListener {
     private static final long serialVersionUID = 1L;
 
     private static final Logger _clientLogger = LoggerFactory.getLogger(Constants.LOGGER_CLIENT);
@@ -609,6 +610,9 @@ public class SpaceProxyImpl extends AbstractDirectSpaceProxy implements SameProx
                 return _proxyRouter;
             _proxyRouter = new SpaceProxyRouter(this);
             _initializedNewRouter = true;
+            if(getSpaceImplIfEmbedded() != null){
+                this.getSpaceImplIfEmbedded().registerToClusterInfoChangedEvent(this);
+            }
             return _proxyRouter;
         }
     }
@@ -741,4 +745,10 @@ public class SpaceProxyImpl extends AbstractDirectSpaceProxy implements SameProx
         SpaceContext spaceContext = getSecurityManager().acquireContext(remoteJSpace, credentialsProvider);
         remoteJSpace.demote(maxSuspendTime, timeUnit, spaceContext);
     }
+
+    @Override
+    public void afterClusterInfoChange(SpaceClusterInfo clusterInfo) {
+        this.updateProxyRouter(this._proxyRouter, clusterInfo.getChunksMap());
+    }
+
 }

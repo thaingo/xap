@@ -239,6 +239,7 @@ public class SpaceImpl extends AbstractService implements IRemoteSpace, IInterna
     private final Object _cleanedLock = new Object();
     private final PrimarySpaceModeListeners primarySpaceModeListeners = new PrimarySpaceModeListeners();
     private final CompositeSpaceModeListener _internalSpaceModesListeners = new CompositeSpaceModeListener();
+    private final ClusterInfoChangedListeners clusterInfoChangedListeners = new ClusterInfoChangedListeners();
     private final IStubHandler _stubHandler;
     private final DemoteHandler _demoteHandler;
     private final HttpServer _httpServer;
@@ -995,6 +996,10 @@ public class SpaceImpl extends AbstractService implements IRemoteSpace, IInterna
 
     public int getPartitionId() {
         return _clusterInfo.getPartitionOfMember(getServiceName()) ;
+    }
+
+    public void registerToClusterInfoChangedEvent(IClusterInfoChangedListener listener) {
+        this.clusterInfoChangedListeners.addListener(listener);
     }
 
     /**
@@ -2987,6 +2992,7 @@ public class SpaceImpl extends AbstractService implements IRemoteSpace, IInterna
             if (schemaFilePath != null)
                 _spaceConfig.setSchemaPath(schemaFilePath);
             initSpaceConfig(_spaceConfig, _configReader, schemaFilePath);
+            this.registerToClusterInfoChangedEvent(_spaceConfig);
         }
 
         return _spaceConfig;
@@ -3895,17 +3901,7 @@ public class SpaceImpl extends AbstractService implements IRemoteSpace, IInterna
             synchronized (this){
                 PartitionToChunksMap newMap = zookeeperChunksMapHandler.getChunksMap(this._clusterInfo.getPartitionOfMember(_spaceMemberName) + 1);
                 this._clusterInfo = this._clusterInfo.cloneAndUpdate(newMap);
-                this._spaceConfig.setClusterInfo(this._clusterInfo);
-                this._taskProxy.updateProxyRouter(_taskProxy.getProxyRouter(),newMap);
-                ISpaceFilter filter = this._engine.getFilterManager().getFilterObject("InjectionExecutorFilter");
-                Method setter;
-                try {
-                    setter = filter.getClass().getMethod("updateSpace", IJSpace.class);
-                    setter.invoke(filter, ((IJSpace) this._taskProxy));
-                } catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
-                    throw  new RuntimeException(e);
-                }
-
+                this.clusterInfoChangedListeners.afterClusterInfoChange(this._clusterInfo);
             }
         } else {
             throw new IllegalStateException("Nothing to update, CHUNKS_SPACE_ROUTING is disabled");
