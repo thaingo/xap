@@ -116,7 +116,7 @@ public class SpaceProxyImpl extends AbstractDirectSpaceProxy implements SameProx
     private final SpaceProxyDataEventsManager _dataEventsManager;
 
     private boolean _initializedNewRouter;
-    private SpaceProxyRouter _proxyRouter;
+    private volatile SpaceProxyRouter _proxyRouter;
     private volatile boolean closed = false;
 
     public SpaceProxyImpl(DirectSpaceProxyFactoryImpl factory, ProxySettings proxySettings) {
@@ -617,6 +617,11 @@ public class SpaceProxyImpl extends AbstractDirectSpaceProxy implements SameProx
         }
     }
 
+    /***
+     * Used in client side to update all proxy components with the new map
+     * @param chunksMap
+     * @return
+     */
     public void updateProxyRouter(SpaceProxyRouter oldRouter, PartitionToChunksMap chunksMap){
         if(this._proxyRouter != oldRouter){
             return;
@@ -626,6 +631,29 @@ public class SpaceProxyImpl extends AbstractDirectSpaceProxy implements SameProx
                 return;
             }
             this._proxySettings = this._proxySettings.cloneAndUpdate(chunksMap);
+            this._proxyRouter = new SpaceProxyRouter(this);
+        }
+    }
+
+    @Override
+    public void afterClusterInfoChange(SpaceClusterInfo clusterInfo) {
+        this.updateProxyRouter(this._proxyRouter, clusterInfo);
+    }
+
+    /***
+     * Used in server side to update all collocated proxies
+     * @param newClusterInfo
+     * @return
+     */
+    private void updateProxyRouter(SpaceProxyRouter oldRouter, SpaceClusterInfo newClusterInfo){
+        if(this._proxyRouter != oldRouter){
+            return;
+        }
+        synchronized (_spaceInitializeLock) {
+            if(this._proxyRouter != oldRouter){
+                return;
+            }
+            this._proxySettings = this._proxySettings.cloneAndUpdate(newClusterInfo);
             this._proxyRouter = new SpaceProxyRouter(this);
         }
     }
@@ -744,11 +772,6 @@ public class SpaceProxyImpl extends AbstractDirectSpaceProxy implements SameProx
 
         SpaceContext spaceContext = getSecurityManager().acquireContext(remoteJSpace, credentialsProvider);
         remoteJSpace.demote(maxSuspendTime, timeUnit, spaceContext);
-    }
-
-    @Override
-    public void afterClusterInfoChange(SpaceClusterInfo clusterInfo) {
-        this.updateProxyRouter(this._proxyRouter, clusterInfo.getChunksMap());
     }
 
 }
