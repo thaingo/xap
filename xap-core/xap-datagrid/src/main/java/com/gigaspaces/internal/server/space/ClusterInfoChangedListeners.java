@@ -28,4 +28,7 @@ public class ClusterInfoChangedListeners {
         listeners.clear();
     }
 
+    public boolean isEmpty() {
+        return listeners.isEmpty();
+    }
 }
