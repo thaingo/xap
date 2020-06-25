@@ -17,6 +17,7 @@
 package com.gigaspaces.internal.cluster.node.impl.config;
 
 import com.gigaspaces.internal.cluster.node.impl.GroupMapping;
+import com.gigaspaces.internal.cluster.node.impl.IReplicationNodeBuilder;
 import com.gigaspaces.internal.cluster.node.impl.IReplicationNodePluginFacade;
 import com.gigaspaces.internal.cluster.node.impl.ReplicationNode;
 import com.gigaspaces.internal.cluster.node.impl.filters.IReplicationInFilter;
@@ -26,7 +27,9 @@ import com.gigaspaces.internal.cluster.node.impl.filters.ISpaceCopyReplicaOutFil
 import com.gigaspaces.internal.cluster.node.impl.groups.IReplicationDynamicTargetGroupBuilder;
 import com.gigaspaces.internal.cluster.node.impl.groups.IReplicationSourceGroupBuilder;
 import com.gigaspaces.internal.cluster.node.impl.groups.IReplicationStaticTargetGroupBuilder;
+import com.gigaspaces.internal.cluster.node.impl.groups.reliableasync.ReliableAsyncSingleOriginReplicationTargetGroupBuilder;
 import com.gigaspaces.internal.utils.StringUtils;
+import com.j_spaces.core.filters.ReplicationStatistics;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -150,6 +153,63 @@ public class ReplicationNodeConfig {
             default:
                 throw new IllegalArgumentException();
         }
+    }
+
+    public IReplicationDynamicTargetGroupBuilder createMatchingTargetGroupBuilder(
+            String groupName, ReplicationNodeMode nodeMode, IReplicationNodeBuilder nodeBuilder) {
+        Collection<IReplicationDynamicTargetGroupBuilder> relevantDynList;
+        switch (nodeMode) {
+            case ACTIVE:
+                relevantDynList = _activeDynamicTargetGroupsBuilders;
+                break;
+            case PASSIVE:
+                relevantDynList = _passiveDynamicTargetGroupsBuilders;
+                break;
+            case ALWAYS:
+                relevantDynList = _alwaysDynamicTargetGroupsBuilders;
+                break;
+            default:
+                throw new IllegalArgumentException();
+        }
+
+        IReplicationDynamicTargetGroupBuilder matchingBuilder = null;
+        for (IReplicationDynamicTargetGroupBuilder builder : relevantDynList) {
+            String originalTemplate = builder.getGroupNameTemplate();
+            String[] split = originalTemplate.split("\\d");
+            StringBuilder stringBuilder = new StringBuilder();
+            for (String s : split) {
+                stringBuilder.append(s).append("\\d");
+            }
+            String regex = stringBuilder.toString();
+            if (groupName.matches(regex)){
+                matchingBuilder = builder;
+            }
+        }
+
+        if(matchingBuilder != null){
+            GroupConfig groupConfig = matchingBuilder.getGroupConfig();
+            char partition = groupName.charAt(groupName.length() - 1);
+            String newTemplate = matchingBuilder.getGroupNameTemplate().replaceAll("-\\d", "-"+partition);
+            String[] names = groupConfig.getMembersLookupNames();
+            String[] newNames = new String[names.length];
+            for (int i = 0; i < names.length; i++) {
+                newNames[i] = names[i].matches(".*\\d_\\d.*") ?
+                        names[i].replaceAll("\\d_", partition+"_") :
+                        names[i].replaceAll("\\d",""+partition);
+            }
+            TargetGroupConfig targetGroupConfig = new TargetGroupConfig("NOT SET",
+                    null,
+                    ReplicationStatistics.ReplicationMode.MIRROR, newNames);
+            ReliableAsyncSingleOriginReplicationTargetGroupBuilder mirrorGroupBuilder = new ReliableAsyncSingleOriginReplicationTargetGroupBuilder(targetGroupConfig);
+            mirrorGroupBuilder.setGroupNameTemplate(newTemplate);
+            mirrorGroupBuilder.setProcessLogBuilder(nodeBuilder.getReplicationProcessLogBuilder());
+            addDynamicTargetGroupBuilder(mirrorGroupBuilder,
+                    ReplicationNodeMode.ACTIVE);
+            addDynamicTargetGroupBuilder(mirrorGroupBuilder, nodeMode);
+            return mirrorGroupBuilder;
+        }
+
+        return null;
     }
 
     public IReplicationDynamicTargetGroupBuilder getMatchingTargetGroupBuilder(
