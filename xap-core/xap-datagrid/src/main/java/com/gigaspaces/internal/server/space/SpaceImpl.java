@@ -1005,7 +1005,8 @@ public class SpaceImpl extends AbstractService implements IRemoteSpace, IInterna
     }
 
     public boolean isChunksRouting() {
-        return useZooKeeper() && GsEnv.propertyBoolean(SystemProperties.CHUNKS_SPACE_ROUTING).get(false);
+        //TODO - disable in case this is a mirror space
+        return useZooKeeper() && GsEnv.propertyBoolean(ChunksRouting.CHUNKS_SPACE_ROUTING).get(ChunksRouting.CHUNKS_SPACE_ROUTING_DEFAULT);
     }
 
     /**
