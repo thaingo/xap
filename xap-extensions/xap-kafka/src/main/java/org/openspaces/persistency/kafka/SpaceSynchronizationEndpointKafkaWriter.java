@@ -1,52 +1,97 @@
 package org.openspaces.persistency.kafka;
 
 import com.gigaspaces.sync.*;
+import com.gigaspaces.sync.serializable.EndpointData;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
-import com.gigaspaces.sync.serializable.EndpointData;
 
 import java.time.Duration;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static org.openspaces.persistency.kafka.KafkaSpaceSynchronizationEndpoint.KAFKA_TIMEOUT;
+
 public class SpaceSynchronizationEndpointKafkaWriter implements Runnable{
     private static final Log logger = LogFactory.getLog(SpaceSynchronizationEndpointKafkaWriter.class);
-    private final static long KAFKA_CONSUME_TIMEOUT = 30;
 
     private SpaceSynchronizationEndpoint spaceSynchronizationEndpoint;
     private Consumer<String, EndpointData> kafkaConsumer;
-    private final String topic;
+    private String topic;
+    private Set<TopicPartition> topicPartitions;
+    private Map<TopicPartition, OffsetAndMetadata> startingPoint;
+    private boolean firstTime = true;
 
-    public SpaceSynchronizationEndpointKafkaWriter(SpaceSynchronizationEndpoint spaceSynchronizationEndpoint, Properties kafkaProps, String topic) {
-        this.kafkaConsumer = new KafkaConsumer<>(kafkaProps);
+    public SpaceSynchronizationEndpointKafkaWriter(SpaceSynchronizationEndpoint spaceSynchronizationEndpoint, Properties kafkaProps, String topic , String groupName) {
         this.spaceSynchronizationEndpoint = spaceSynchronizationEndpoint;
         this.topic = topic;
+        kafkaProps.put(ConsumerConfig.GROUP_ID_CONFIG, groupName);
+        initKafkaConsumer(kafkaProps);
+    }
+
+    private void initKafkaConsumer(Properties kafkaProps) {
+        this.kafkaConsumer = new KafkaConsumer<>(kafkaProps);
+        this.topicPartitions = initTopicPartitions();
+        kafkaConsumer.assign(topicPartitions);
+        this.startingPoint = kafkaConsumer.committed(topicPartitions);
+        if(startingPoint.values().stream().allMatch(Objects::isNull))
+            this.startingPoint = null;
+    }
+
+    private Set<TopicPartition> initTopicPartitions(){
+        List<PartitionInfo> partitionInfos;
+        while (true){
+            try{
+                partitionInfos = kafkaConsumer.partitionsFor(topic);
+                if(partitionInfos != null)
+                    return partitionInfos.stream().map(p -> new TopicPartition(p.topic(), p.partition())).collect(Collectors.toSet());
+            } catch (RuntimeException e){
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException interruptedException) {
+                    throw new RuntimeException("Interrupted while getting kafka partitions for topic " + topic);
+                }
+            }
+        }
+    }
+
+    public Map<TopicPartition, OffsetAndMetadata> getStartingPoint() {
+        return startingPoint;
+    }
+
+    public void setStartingPoint(Map<TopicPartition, OffsetAndMetadata> startingPoint) {
+        this.startingPoint = startingPoint;
     }
 
     public void run() {
-        Set<TopicPartition> topicPartitions = getTopicPartitions();
-        kafkaConsumer.assign(topicPartitions);
         try{
             while (true) {
                 try {
-                    Map<TopicPartition, OffsetAndMetadata> map = kafkaConsumer.committed(topicPartitions);
-                    Collection<TopicPartition> uninitializedPartitions = new HashSet<>();
-                    for (Map.Entry<TopicPartition, OffsetAndMetadata> entry : map.entrySet()) {
-                        TopicPartition topicPartition = entry.getKey();
-                        OffsetAndMetadata offsetAndMetadata = entry.getValue();
-                        if(offsetAndMetadata != null) {
-                            kafkaConsumer.seek(topicPartition, offsetAndMetadata);
-                        }
-                        else{
-                            uninitializedPartitions.add(topicPartition);
-                        }
+                    Map<TopicPartition, OffsetAndMetadata> map;
+                    if(firstTime){
+                        map = startingPoint;
+                        firstTime = false;
                     }
-                    if(!uninitializedPartitions.isEmpty())
-                        kafkaConsumer.seekToBeginning(uninitializedPartitions);
-                    ConsumerRecords<String, EndpointData> records = kafkaConsumer.poll(Duration.ofSeconds(KAFKA_CONSUME_TIMEOUT));
+                    else {
+                        map = kafkaConsumer.committed(topicPartitions);
+                    }
+                    if(map != null) {
+                        Collection<TopicPartition> uninitializedPartitions = new HashSet<>();
+                        for (Map.Entry<TopicPartition, OffsetAndMetadata> entry : map.entrySet()) {
+                            TopicPartition topicPartition = entry.getKey();
+                            OffsetAndMetadata offsetAndMetadata = entry.getValue();
+                            if (offsetAndMetadata != null) {
+                                kafkaConsumer.seek(topicPartition, offsetAndMetadata);
+                            } else {
+                                uninitializedPartitions.add(topicPartition);
+                            }
+                        }
+                        if (!uninitializedPartitions.isEmpty())
+                            kafkaConsumer.seekToBeginning(uninitializedPartitions);
+                    }
+                    ConsumerRecords<String, EndpointData> records = kafkaConsumer.poll(Duration.ofSeconds(KAFKA_TIMEOUT));
                     for(ConsumerRecord<String, EndpointData> record: records) {
                         EndpointData endpointData = record.value();
                         switch (endpointData.getSyncEndpointMethod()) {
@@ -92,31 +137,25 @@ public class SpaceSynchronizationEndpointKafkaWriter implements Runnable{
                         }
                     }
                 }catch (Exception e){
-                    logException(e);
+                    if(e instanceof InterruptedException)
+                        throw (InterruptedException) e;
+                    handleException(e);
                     continue;
                 }
             }
-        } finally {
+        } catch (InterruptedException e){
             if(logger.isInfoEnabled())
                 logger.info("Closing kafka consumer of topic " + topic);
-            kafkaConsumer.close();
+            kafkaConsumer.close(Duration.ofSeconds(KAFKA_TIMEOUT));
         }
     }
 
-    private Set<TopicPartition> getTopicPartitions(){
-        List<PartitionInfo> partitionInfos;
-        while (true){
-            try{
-                partitionInfos = kafkaConsumer.partitionsFor(topic);
-                if(partitionInfos != null)
-                    return partitionInfos.stream().map(p -> new TopicPartition(p.topic(), p.partition())).collect(Collectors.toSet());
-            } catch (RuntimeException e){
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException interruptedException) {
-                    throw new RuntimeException("Iterrupted while getting kafka topic partitions for topic " + topic);
-                }
-            }
+    private void handleException(Exception e) throws InterruptedException {
+        logException(e);
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException interruptedException) {
+            throw new InterruptedException("Interrupted while recovering from exception thrown during message consumption from kafka topic " + topic);
         }
     }
 
@@ -129,9 +168,5 @@ public class SpaceSynchronizationEndpointKafkaWriter implements Runnable{
         if(logger.isDebugEnabled()) {
             logger.debug("Consumed kafka message of type " + endpointType + " and persisted to " + spaceSynchronizationEndpoint.getClass().getSimpleName());
         }
-    }
-
-    public void close() {
-        kafkaConsumer.close();
     }
 }
