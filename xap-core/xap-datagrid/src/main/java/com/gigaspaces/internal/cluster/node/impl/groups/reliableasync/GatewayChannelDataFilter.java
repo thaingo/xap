@@ -40,7 +40,11 @@ public class GatewayChannelDataFilter extends ReliableAsyncChannelDataFilter {
         //Filter all operations that originated from a gateway (currently gateway usage is always from wan so any
         //incoming replication from any gateway is considered from wan and we should filter it)
         if (entryData.isFromGateway())
+            return ReplicationChannelEntryDataFilterResult.FILTER_DATA;
+
+        if(entryData.isBackupOnly()){
             return ReplicationChannelEntryDataFilterResult.FILTER_PACKET;
+        }
 
         switch (entryData.getOperationType()) {
             case WRITE:
