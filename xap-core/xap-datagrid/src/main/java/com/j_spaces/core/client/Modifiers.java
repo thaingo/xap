@@ -243,6 +243,13 @@ public class Modifiers {
      */
     public static final int EXPLAIN_PLAN = 1 << 28;
 
+    /**
+     * Determines if an update operation should be replicated only to backup
+     *
+     * @since 15.5.0
+     */
+    public static final int BACKUP_ONLY = 1 << 29;
+
     public static boolean contains(int modifiers, int setting) {
         return (modifiers & setting) != 0;
     }
