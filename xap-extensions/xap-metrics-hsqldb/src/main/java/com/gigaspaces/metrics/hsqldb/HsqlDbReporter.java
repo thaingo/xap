@@ -38,6 +38,7 @@ public class HsqlDbReporter extends MetricReporter {
     private final SharedJdbcConnectionWrapper connectionWrapper;
     private final String dbTypeString;
     private final Map<String,PreparedStatement> _preparedStatements = new HashMap<>();
+    private final Set<PreparedStatement> statementsForBatch = new HashSet<>();
 
     public HsqlDbReporter(HsqlDBReporterFactory factory, SharedJdbcConnectionWrapper connectionWrapper) {
         super(factory);
@@ -93,9 +94,10 @@ public class HsqlDbReporter extends MetricReporter {
             for (int i=0 ; i < values.size() ; i++) {
                 setParameter(statement, i+1, values.get(i));
             }
-            _logger.trace("Before insert [{}]", insertSQL);
-            statement.executeUpdate();
-            _logger.trace("After insert [{}]", insertSQL);
+            _logger.trace("Before adding insert to batch [{}]", insertSQL);
+            statement.addBatch();
+            _logger.trace("After adding insert to batch [{}]", insertSQL);
+            statementsForBatch.add( statement );
         } catch (SQLSyntaxErrorException e) {
             String message = e.getMessage();
             _logger.debug("Report to {} failed: {}", tableName, message);
@@ -123,6 +125,25 @@ public class HsqlDbReporter extends MetricReporter {
                            Arrays.toString(values.toArray(new Object[0])), e);
             }
         }
+    }
+
+    @Override
+    public void flush() {
+
+        for(PreparedStatement statement : statementsForBatch){
+            try {
+                statement.executeBatch();
+            }
+            catch( BatchUpdateException batchUpdateException ){
+                //_logger.info( "Update counts of are : " + Arrays.toString( batchUpdateException.getUpdateCounts() ) );
+                _logger.error( "Failed to insert row to table due to " + batchUpdateException.toString(), batchUpdateException );
+            }
+            catch (SQLException sqlException) {
+                _logger.error( "Failed to insert row due to " + sqlException.toString(), sqlException );
+            }
+        }
+
+         statementsForBatch.clear();
     }
 
     private void handleConnectionError(Connection connection) {
