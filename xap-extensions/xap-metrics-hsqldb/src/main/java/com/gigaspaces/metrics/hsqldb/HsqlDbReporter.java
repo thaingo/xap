@@ -87,9 +87,10 @@ public class HsqlDbReporter extends MetricReporter {
 
         _logger.debug("Report, con={}, key={}", con, key);
         List<Object> values = new ArrayList<>();
-        String insertSQL = generateInsertQuery(tableName, snapshot.getTimestamp(), value, tags, values);
-
+        String insertSQL = "";
         try {
+            insertSQL = generateInsertQuery(tableName, snapshot.getTimestamp(), value, tags, values);
+
             PreparedStatement statement = getOrCreatePreparedStatement(insertSQL, con);
             for (int i=0 ; i < values.size() ; i++) {
                 setParameter(statement, i+1, values.get(i));
@@ -124,6 +125,11 @@ public class HsqlDbReporter extends MetricReporter {
                     .error("Failed to insert row [{}] using values [{}]", insertSQL,
                            Arrays.toString(values.toArray(new Object[0])), e);
             }
+        }
+        catch( Throwable t ){
+            _logger
+                    .error("Failed to insert row [{}] using values [{}]", insertSQL,
+                            Arrays.toString(values.toArray(new Object[0])), t);
         }
     }
 
@@ -266,10 +272,16 @@ public class HsqlDbReporter extends MetricReporter {
             }
         }
 
+        PredefinedSystemMetrics predefinedSystemMetrics = PredefinedSystemMetrics.valueOf(tableName);
+        List<String> columnForInsert = predefinedSystemMetrics.getColumns();
+
         Map<String,String> missingColumns = new LinkedHashMap<>(); //preserve insertion order
         tags.getTags().forEach((name, value) -> {
-            if (!existingColumns.contains(name.toUpperCase()))
-                missingColumns.put(name, getDbType(value));
+            if (!existingColumns.contains(name.toUpperCase())) {
+                if( columnForInsert == null || columnForInsert.contains( name ) ) {
+                    missingColumns.put(name, getDbType(value));
+                }
+            }
         });
 
         _logger.debug("Missing columns: {}", missingColumns);
@@ -284,15 +296,20 @@ public class HsqlDbReporter extends MetricReporter {
         parameters.add("?");
         values.add(new Timestamp(timestamp));
 
+        PredefinedSystemMetrics predefinedSystemMetrics = PredefinedSystemMetrics.valueOf(tableName);
+        List<String> columnForInsert = predefinedSystemMetrics.getColumns();
+
         tags.getTags().forEach((k, v) -> {
-            columns.add(k);
-            parameters.add("?");
-            values.add(v);
-            if( k == null ){
-                _logger.warn( "Null column name using while inserting row into table {}", tableName );
-            }
-            if( v == null ){
-                _logger.warn( "Null [{}] value using while inserting row into table {}", k, tableName );
+            if( columnForInsert == null || columnForInsert.contains( k ) ){
+                columns.add(k);
+                parameters.add("?");
+                values.add(v);
+                if( k == null ){
+                    _logger.warn( "Null column name using while inserting row into table {}", tableName );
+                }
+                if( v == null ){
+                    _logger.warn( "Null [{}] value using while inserting row into table {}", k, tableName );
+                }
             }
         });
 
@@ -313,8 +330,16 @@ public class HsqlDbReporter extends MetricReporter {
         sb.append("CREATE CACHED TABLE ").append(tableName).append(" (");
         sb.append("TIME TIMESTAMP,");
 
+        PredefinedSystemMetrics predefinedSystemMetrics = PredefinedSystemMetrics.valueOf(tableName);
+        List<String> columnForInsert = predefinedSystemMetrics.getColumns();
+
         tags.getTags().forEach((columnName, columnValue) ->
-                sb.append(columnName).append(' ').append(getDbType(columnValue)).append(','));
+            {
+                if( columnForInsert == null || columnForInsert.contains( columnName ) ) {
+                    sb.append(columnName).append(' ').append(getDbType(columnValue)).append(',');
+                }
+            }
+        );
 
         sb.append("VALUE ").append(getDbType(value));
         sb.append(')');
