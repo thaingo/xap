@@ -12,7 +12,7 @@ public class ChunksRoutingManager implements Externalizable {
     private static final long serialVersionUID = 1L;
 
     private Map<Integer, PartitionToChunksMap> maps;
-    private Map <Integer,Integer> partitionGenerationMap;
+    private Map<Integer,Integer> partitionGenerationMap;
     private int currentGeneration;
 
     public ChunksRoutingManager() {
@@ -20,11 +20,11 @@ public class ChunksRoutingManager implements Externalizable {
 
     public ChunksRoutingManager(PartitionToChunksMap chunksMap) {
         this.currentGeneration = chunksMap.getGeneration();
-        maps = new HashMap<>();
-        maps.put(chunksMap.getGeneration(),chunksMap);
+        this.maps = new HashMap<>();
+        addNewMap(chunksMap);
         partitionGenerationMap = new HashMap<>(chunksMap.getNumOfPartitions());
         for (int i = 1; i <= chunksMap.getNumOfPartitions(); i++) {
-            partitionGenerationMap.put(i,chunksMap.getGeneration());
+            partitionGenerationMap.put(i, currentGeneration);
         }
     }
 
@@ -32,21 +32,9 @@ public class ChunksRoutingManager implements Externalizable {
         return maps;
     }
 
-    public void setMaps(Map<Integer, PartitionToChunksMap> maps) {
-        this.maps = maps;
-    }
-
-    public void setPartitionGenerationMap(Map<Integer, Integer> partitionGenerationMap) {
-        this.partitionGenerationMap = partitionGenerationMap;
-    }
-
-    public void setCurrentGeneration(int currentGeneration) {
-        this.currentGeneration = currentGeneration;
-    }
-
     public PartitionToChunksMap getMapForPartition(int partitionId) {
         Integer partitionGeneration = this.partitionGenerationMap.get(partitionId);
-        return partitionGeneration == null ? null : this.getMaps().get(partitionGeneration);
+        return partitionGeneration == null ? null : maps.get(partitionGeneration);
     }
 
     public void setPartitionGeneration(int partitionId, int generation) {
@@ -106,13 +94,13 @@ public class ChunksRoutingManager implements Externalizable {
         for (Map.Entry<Integer, PartitionToChunksMap> mapEntry : this.maps.entrySet()) {
             maps.put(mapEntry.getKey(),mapEntry.getValue());
         }
-        copy.setMaps(maps);
+        copy.maps = maps;
         Map <Integer,Integer> partitionGenerationMap = new HashMap<>(this.partitionGenerationMap.size());
         for (Map.Entry<Integer, Integer> entry : this.partitionGenerationMap.entrySet()) {
             partitionGenerationMap.put(entry.getKey(),entry.getValue());
         }
-        copy.setPartitionGenerationMap(partitionGenerationMap);
-        copy.setCurrentGeneration(this.currentGeneration);
+        copy.partitionGenerationMap = partitionGenerationMap;
+        copy.currentGeneration = this.currentGeneration;
         return copy;
     }
 
