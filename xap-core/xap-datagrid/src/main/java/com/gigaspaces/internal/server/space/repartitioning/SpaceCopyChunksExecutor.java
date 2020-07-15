@@ -13,6 +13,7 @@ import com.j_spaces.core.IJSpace;
 import com.j_spaces.core.client.FinderException;
 import com.j_spaces.core.client.Modifiers;
 
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.util.Collections;
 import java.util.HashMap;
@@ -22,27 +23,26 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class SpaceCopyChunksExecutor extends SpaceActionExecutor {
 
-    private static final int QUEUE_SIZE = 10000;
-    private static final int BATCH_SIZE = 1000;
-    private static final int THREAD_COUNT = 10;
-
-    private ExecutorService executorService = Executors.newFixedThreadPool(SpaceCopyChunksExecutor.THREAD_COUNT);
-    private BlockingQueue<Batch> batchQueue = new ArrayBlockingQueue<>(SpaceCopyChunksExecutor.QUEUE_SIZE);
-    private AtomicBoolean finished = new AtomicBoolean(false);
-
     @Override
     public SpaceResponseInfo execute(SpaceImpl space, SpaceRequestInfo requestInfo) {
+        int queueSize = 10000;
+        int batchSize = 1000;
+        int threadCount = 10;
+
+        ExecutorService executorService = Executors.newFixedThreadPool(threadCount);
+        BlockingQueue<Batch> batchQueue = new ArrayBlockingQueue<>(queueSize);
+        AtomicBoolean finished = new AtomicBoolean(false);
         CopyChunksRequestInfo info = (CopyChunksRequestInfo) requestInfo;
         CopyChunksResponseInfo responseInfo = new CopyChunksResponseInfo(info.getInstanceIds().keySet());
         //TODO - copy notify templates
         //TODO - register types
         try {
             HashMap<Integer, ISpaceProxy> proxyMap = createProxyMap(info.getSpaceName(), info.getInstanceIds(), info.getToken());
-            for (int i = 0; i < SpaceCopyChunksExecutor.THREAD_COUNT; i++) {
+            for (int i = 0; i < threadCount; i++) {
                 executorService.submit(new CopyChunksConsumer(proxyMap,
                         batchQueue, finished, responseInfo));
             }
-            CopyChunksAggregator aggregator = new CopyChunksAggregator(info.getNewMap(), batchQueue, SpaceCopyChunksExecutor.BATCH_SIZE);
+            CopyChunksAggregator aggregator = new CopyChunksAggregator(info.getNewMap(), batchQueue, batchSize);
             EmptyQueryPacket queryPacket = new EmptyQueryPacket();
             queryPacket.setQueryResultType(QueryResultTypeInternal.NOT_SET);
             space.getEngine().aggregate(queryPacket, Collections.singletonList(aggregator), Modifiers.NONE, requestInfo.getSpaceContext());
@@ -51,7 +51,7 @@ public class SpaceCopyChunksExecutor extends SpaceActionExecutor {
             executorService.shutdown();
             executorService.awaitTermination(5, TimeUnit.MINUTES);
         } catch (Exception e) {
-            responseInfo.getPartitionException().put((short) space.getPartitionIdOneBased(), e);
+            responseInfo.setException(new IOException("Copy chunks executor failed", e));
         }
         return responseInfo;
     }

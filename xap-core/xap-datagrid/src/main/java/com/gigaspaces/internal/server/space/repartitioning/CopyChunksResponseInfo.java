@@ -9,13 +9,12 @@ import java.io.ObjectOutput;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class CopyChunksResponseInfo implements SpaceResponseInfo {
 
     private int partitionId;
-    private Map<Short,Exception> partitionException;
+    private IOException exception;
     private Map<Short, AtomicInteger> movedToPartition;
 
 
@@ -25,14 +24,17 @@ public class CopyChunksResponseInfo implements SpaceResponseInfo {
 
     CopyChunksResponseInfo(Set<Integer> keys) {
         this.movedToPartition = new HashMap<>(keys.size());
-        this.partitionException = new ConcurrentHashMap<>(keys.size());
         for (int key : keys) {
             this.movedToPartition.put((short) key, new AtomicInteger(0));
         }
     }
 
-    public Map<Short, Exception> getPartitionException() {
-        return partitionException;
+    public IOException getException() {
+        return exception;
+    }
+
+    public void setException(IOException exception) {
+        this.exception = exception;
     }
 
     public Map<Short, AtomicInteger> getMovedToPartition() {
@@ -50,11 +52,7 @@ public class CopyChunksResponseInfo implements SpaceResponseInfo {
     @Override
     public void writeExternal(ObjectOutput out) throws IOException {
         IOUtils.writeInt(out, partitionId);
-        IOUtils.writeShort(out, (short) partitionException.size());
-        for (Map.Entry<Short, Exception> entry : partitionException.entrySet()) {
-            IOUtils.writeShort(out, entry.getKey());
-            IOUtils.writeObject(out, entry.getValue());
-        }
+        IOUtils.writeObject(out, exception);
         IOUtils.writeShort(out, (short) movedToPartition.size());
         for (Map.Entry<Short, AtomicInteger> entry : movedToPartition.entrySet()) {
             IOUtils.writeShort(out, entry.getKey());
@@ -65,14 +63,8 @@ public class CopyChunksResponseInfo implements SpaceResponseInfo {
     @Override
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
         this.partitionId = IOUtils.readInt(in);
-        short size = IOUtils.readShort(in);
-        if (size > 0) {
-            this.partitionException = new HashMap<>(size);
-            for (int i = 0; i < size; i++) {
-                this.partitionException.put(IOUtils.readShort(in), IOUtils.readObject(in));
-            }
-        }
-        size = IOUtils.readShort(in);
+        this.exception = IOUtils.readObject(in);
+        int size = IOUtils.readShort(in);
         if (size > 0) {
             this.movedToPartition = new HashMap<>(size);
             for (int i = 0; i < size; i++) {

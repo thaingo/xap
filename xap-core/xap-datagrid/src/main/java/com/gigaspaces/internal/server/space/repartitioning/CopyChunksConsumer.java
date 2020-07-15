@@ -7,6 +7,7 @@ import net.jini.core.transaction.TransactionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.rmi.RemoteException;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
@@ -35,16 +36,18 @@ public class CopyChunksConsumer implements Runnable {
             Batch batch;
             try {
                 batch = batchQueue.poll(5, TimeUnit.SECONDS);
-                if(batch != null) {
+                if (batch != null) {
                     try {
                         ISpaceProxy spaceProxy = proxyMap.get(batch.getPartitionId());
                         spaceProxy.writeMultiple(batch.getEntries().toArray(), null, Lease.FOREVER, Modifiers.BACKUP_ONLY);
                         responseInfo.getMovedToPartition().get((short) batch.getPartitionId()).addAndGet(batch.getEntries().size());
                     } catch (RemoteException | TransactionException e) {
-                        responseInfo.getPartitionException().put((short) batch.getPartitionId(), e);
+                        responseInfo.setException(new IOException("Caught exception while trying to write to partition " + batch.getPartitionId(), e));
+                        break;
                     }
                 }
-            } catch (InterruptedException ignored) {
+            } catch (InterruptedException e) {
+                responseInfo.setException(new IOException("Copy chunks consumer thread was interrupted", e));
                 break;
             }
         }
