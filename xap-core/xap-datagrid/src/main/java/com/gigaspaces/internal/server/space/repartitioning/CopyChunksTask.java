@@ -34,11 +34,15 @@ public class CopyChunksTask extends SystemDistributedTask<CopyChunksResponseInfo
     public CopyChunksResponseInfo reduce(List<AsyncResult<CopyChunksResponseInfo>> asyncResults) throws Exception {
         CompoundCopyChunksResponse compoundResponse = new CompoundCopyChunksResponse();
         for (AsyncResult<CopyChunksResponseInfo> asyncResult : asyncResults) {
-            if(asyncResult.getException() != null){
+            if (asyncResult.getException() != null) {
                 throw asyncResult.getException();
-            } else {
-                compoundResponse.addResponse(asyncResult.getResult());
             }
+            if (asyncResult.getResult().getException() != null) {
+                throw asyncResult.getResult().getException();
+            }
+
+            compoundResponse.addResponse(asyncResult.getResult());
+
         }
         return compoundResponse;
     }

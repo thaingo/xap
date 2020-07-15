@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class CopyChunksResponseInfo implements SpaceResponseInfo {
 
     private int partitionId;
-    private IOException exception;
+    private volatile IOException exception;
     private Map<Short, AtomicInteger> movedToPartition;
 
 

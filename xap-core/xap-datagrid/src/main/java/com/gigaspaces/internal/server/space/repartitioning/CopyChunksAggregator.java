@@ -5,6 +5,8 @@ import com.gigaspaces.internal.remoting.routing.partitioned.PartitionedClusterUt
 import com.gigaspaces.internal.transport.IEntryPacket;
 import com.gigaspaces.query.aggregators.SpaceEntriesAggregator;
 import com.gigaspaces.query.aggregators.SpaceEntriesAggregatorContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -14,6 +16,7 @@ import java.util.concurrent.BlockingQueue;
 
 public class CopyChunksAggregator extends SpaceEntriesAggregator<CopyChunksResponseInfo> {
 
+    public static Logger logger = LoggerFactory.getLogger("org.openspaces.admin.internal.pu.scale_horizontal.ScaleManager");
 
     private PartitionToChunksMap newMap;
     private Map<Integer, List<IEntryPacket>> batchMap;
@@ -40,10 +43,17 @@ public class CopyChunksAggregator extends SpaceEntriesAggregator<CopyChunksRespo
             if (batchMap.containsKey(newPartitionId)) {
                 List<IEntryPacket> entries = batchMap.get(newPartitionId);
                 entries.add((IEntryPacket) context.getRawEntry());
-
                 if (entries.size() == batchSize) {
-                    queue.add(new Batch(newPartitionId, entries));
-                    batchMap.remove(newPartitionId);
+                    try {
+                        queue.put(new Batch(newPartitionId, entries));
+                        batchMap.remove(newPartitionId);
+                    } catch (Exception e) {
+                        if(logger.isDebugEnabled()){
+                            logger.debug("Exception in aggregator while trying to put batch in queue");
+                            e.printStackTrace();
+                        }
+                        throw new RuntimeException(e);
+                    }
                 }
 
             } else {

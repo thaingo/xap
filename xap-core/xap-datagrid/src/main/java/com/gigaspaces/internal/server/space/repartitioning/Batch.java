@@ -5,6 +5,8 @@ import com.gigaspaces.internal.transport.IEntryPacket;
 import java.util.List;
 
 class Batch {
+
+    static Batch EMPTY_BATCH = new Batch(-1, null);
     private final int partitionId;
     private final List<IEntryPacket> entries;
 
