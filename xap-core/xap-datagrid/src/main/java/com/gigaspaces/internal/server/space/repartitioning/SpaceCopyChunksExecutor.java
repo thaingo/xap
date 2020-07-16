@@ -56,7 +56,7 @@ public class SpaceCopyChunksExecutor extends SpaceActionExecutor {
             }
             boolean isEmpty = BootIOUtils.waitFor(batchQueue::isEmpty, 10 * 60 * 1000, 5000);
             if(!isEmpty){
-                throw new IOException("Failed while waiting for queque to be empty");
+                throw new IOException("Failed while waiting for queue to be empty");
             }
             executorService.shutdown();
             executorService.awaitTermination(5, TimeUnit.MINUTES);
